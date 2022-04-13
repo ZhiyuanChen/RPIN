@@ -22,6 +22,9 @@ class PHYRE(Phys):
         self.video_list = sum([sorted(glob(f'{data_root}/images/{env.replace(":", "/")}/*.npy')) for env in env_list], [])
         self.anno_list = [(v[:-4] + '_boxes.hkl').replace('images', 'labels') for v in self.video_list]
 
+        self.mask_loss_weight = C.RPIN.MASK_LOSS_WEIGHT
+        self.mask_size = C.RPIN.MASK_SIZE
+
         # just for plot images
         if plot:
             self.video_list = [k for k in self.video_list if int(k.split('/')[-1].split('.')[0]) < 40]
@@ -62,8 +65,8 @@ class PHYRE(Phys):
 
     def _parse_label(self, anno_name, vid_idx, img_idx):
         boxes = hickle.load(anno_name)[img_idx:img_idx + self.seq_size, :, 1:]
-        gt_masks = np.zeros((self.pred_size, boxes.shape[1], C.RPIN.MASK_SIZE, C.RPIN.MASK_SIZE))
-        if C.RPIN.MASK_LOSS_WEIGHT > 0:
+        gt_masks = np.zeros((self.pred_size, boxes.shape[1], self.mask_size, self.mask_size))
+        if self.mask_loss_weight > 0:
             anno_name = anno_name.replace('boxes.', 'masks.')
             gt_masks = hickle.load(anno_name)
             gt_masks = gt_masks[img_idx:img_idx + self.seq_size].astype(np.float32)

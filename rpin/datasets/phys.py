@@ -25,6 +25,10 @@ class Phys(Dataset):
         self.input_height, self.input_width = C.RPIN.INPUT_HEIGHT, C.RPIN.INPUT_WIDTH
         self.video_list, self.anno_list = None, None
         self.video_info = None
+        self.vae = C.RPIN.VAE
+        self.h_flip = C.RPIN.HORIZONTAL_FLIP
+        self.v_flip = C.RPIN.VERTICAL_FLIP
+        self.max_num_objs = C.RPIN.MAX_NUM_OBJS
 
     def __len__(self):
         return self.video_info.shape[0]
@@ -32,7 +36,7 @@ class Phys(Dataset):
     def __getitem__(self, idx):
         vid_idx, img_idx = self.video_info[idx, 0], self.video_info[idx, 1]
         video_name, anno_name = self.video_list[vid_idx], self.anno_list[vid_idx]
-        if C.RPIN.VAE:
+        if self.vae:
             data, data_t = self._parse_image(video_name, vid_idx, img_idx)
         else:
             data = self._parse_image(video_name, vid_idx, img_idx)
@@ -41,12 +45,12 @@ class Phys(Dataset):
         boxes, gt_masks = self._parse_label(anno_name, vid_idx, img_idx)
 
         # image flip augmentation
-        if random.random() > 0.5 and self.split == 'train' and C.RPIN.HORIZONTAL_FLIP:
+        if random.random() > 0.5 and self.split == 'train' and self.h_flip:
             boxes[..., [0, 2]] = self.input_width - boxes[..., [2, 0]]
             data = np.ascontiguousarray(data[..., ::-1])
             gt_masks = np.ascontiguousarray(gt_masks[..., ::-1])
 
-        if random.random() > 0.5 and self.split == 'train' and C.RPIN.VERTICAL_FLIP:
+        if random.random() > 0.5 and self.split == 'train' and self.v_flip:
             boxes[..., [1, 3]] = self.input_height - boxes[..., [3, 1]]
             data = np.ascontiguousarray(data[..., ::-1, :])
             gt_masks = np.ascontiguousarray(gt_masks[..., ::-1])
@@ -54,23 +58,23 @@ class Phys(Dataset):
         # when the number of objects is fewer than the max number of objects
         num_objs = boxes.shape[1]
         g_idx = []
-        for i in range(C.RPIN.MAX_NUM_OBJS):
-            for j in range(C.RPIN.MAX_NUM_OBJS):
+        for i in range(self.max_num_objs):
+            for j in range(self.max_num_objs):
                 if j == i:
                     continue
                 g_idx.append([i, j, (i < num_objs) * (j < num_objs)])
         g_idx = np.array(g_idx)
 
-        valid = np.ones(C.RPIN.MAX_NUM_OBJS)
+        valid = np.ones(self.max_num_objs)
         valid[num_objs:] = 0
-        boxes = np.concatenate([boxes] + [boxes[:, :1] for _ in range(C.RPIN.MAX_NUM_OBJS - num_objs)], axis=1)
-        gt_masks = np.concatenate([gt_masks] + [gt_masks[:, :1] for _ in range(C.RPIN.MAX_NUM_OBJS - num_objs)], axis=1)
+        boxes = np.concatenate([boxes] + [boxes[:, :1] for _ in range(self.max_num_objs - num_objs)], axis=1)
+        gt_masks = np.concatenate([gt_masks] + [gt_masks[:, :1] for _ in range(self.max_num_objs - num_objs)], axis=1)
 
         # rois
         rois = boxes[:self.input_size].copy()
         # gt boxes
         gt_boxes = boxes[self.input_size:].copy()
-        gt_boxes = xyxy2xywh(gt_boxes.reshape(-1, 4)).reshape((-1, C.RPIN.MAX_NUM_OBJS, 4))
+        gt_boxes = xyxy2xywh(gt_boxes.reshape(-1, 4)).reshape((-1, self.max_num_objs, 4))
         gt_boxes[..., 0::2] /= self.input_width
         gt_boxes[..., 1::2] /= self.input_height
         gt_boxes = gt_boxes.reshape(self.pred_size, -1, 4)
