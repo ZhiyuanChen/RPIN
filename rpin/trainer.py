@@ -78,7 +78,10 @@ class Trainer(object):
             speed = self.loss_cnt / (timer() - self.time)
             eta = (self.max_iters - self.iterations) / speed / 3600
             print_msg += f" | speed: {speed:.1f} | eta: {eta:.2f} h"
-            print_msg += (" " * (os.get_terminal_size().columns - len(print_msg) - 10))
+            try:
+                print_msg += (" " * (os.get_terminal_size().columns - len(print_msg) - 10))
+            except OSError:
+                print_msg += (" " * (100 - len(print_msg) - 10))
             tprint(print_msg)
 
             if self.iterations % self.val_interval == 0:
@@ -158,7 +161,10 @@ class Trainer(object):
         print_msg += f" | ".join(["{:.3f}".format(self.losses[name] * 1e3 / self.loss_cnt) for name in self.loss_name])
         if C.RPIN.SEQ_CLS_LOSS_WEIGHT:
             print_msg += f" | {self.fg_correct / (self.fg_num + 1e-9):.3f} | {self.bg_correct / (self.bg_num + 1e-9):.3f}"
-        print_msg += (" " * (os.get_terminal_size().columns - len(print_msg) - 10))
+        try:
+            print_msg += (" " * (os.get_terminal_size().columns - len(print_msg) - 10))
+        except OSError:
+            print_msg += (" " * (100 - len(print_msg) - 10))
         self.logger.info(print_msg)
 
     def loss(self, outputs, labels, phase):

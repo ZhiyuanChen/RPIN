@@ -64,6 +64,10 @@ _C.RPIN.ROI_POOL_SAMPLE_R = 1
 # parameter
 _C.RPIN.VE_FEAT_DIM = 32
 _C.RPIN.IN_FEAT_DIM = 64
+_C.RPIN.TRAN_EMBED_DIM = 512
+_C.RPIN.TRAN_HEADS_NUM = 8
+_C.RPIN.TRAN_DROPOUT = 0.1
+_C.RPIN.TRAN_FEAT_DIM = 2048
 # uncertainty modeling, usually just for ShapeStacks
 _C.RPIN.VAE = False
 _C.RPIN.VAE_KL_LOSS_WEIGHT = 0.001
