@@ -16,9 +16,13 @@ INPUT:
   IMAGE_CHANNEL: 3
 RPIN:
   BACKBONE: 'hourglass_bn'
-  ARCH: 'rpcin'
+  ARCH: 'rptran'
   VE_FEAT_DIM: 256
   IN_FEAT_DIM: 256
+  TRAN_EMBED_DIM: 512
+  TRAN_HEADS_NUM: 8
+  TRAN_DROPOUT: 0.1
+  TRAN_FEAT_DIM: 2048
   # prediction setting:
   INPUT_SIZE: 1
   PRED_SIZE_TRAIN: 5
