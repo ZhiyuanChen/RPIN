@@ -58,7 +58,7 @@ class Trainer(object):
                 'boxes': gt_boxes.to(self.device),
                 'masks': gt_masks.to(self.device),
                 'valid': valid.to(self.device),
-                'seq_l': seq_l.to(self.device),
+                'seq_l': seq_l.to(self.device).squeeze(),
             }
             loss = self.loss(outputs, labels, 'train')
             loss.backward()
@@ -74,7 +74,7 @@ class Trainer(object):
             print_msg += f" | ".join(
                 ["{:.3f}".format(self.losses[name] * 1e3 / self.loss_cnt) for name in self.loss_name])
             if C.RPIN.SEQ_CLS_LOSS_WEIGHT:
-                print_msg += f" | {self.fg_correct / self.fg_num:.3f} | {self.bg_correct / self.bg_num:.3f}"
+                print_msg += f" | {self.fg_correct / (self.fg_num + 1e-9):.3f} | {self.bg_correct / (self.bg_num + 1e-9):.3f}"
             speed = self.loss_cnt / (timer() - self.time)
             eta = (self.max_iters - self.iterations) / speed / 3600
             print_msg += f" | speed: {speed:.1f} | eta: {eta:.2f} h"
@@ -114,7 +114,7 @@ class Trainer(object):
                     'boxes': gt_boxes.to(self.device),
                     'masks': gt_masks.to(self.device),
                     'valid': valid.to(self.device),
-                    'seq_l': seq_l.to(self.device),
+                    'seq_l': seq_l.to(self.device).squeeze(),
                 }
 
                 outputs = self.model(data, rois, num_rollouts=self.ptest_size, g_idx=g_idx, phase='test')
