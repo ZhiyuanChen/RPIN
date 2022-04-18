@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torch.utils import data
 
-from rpin.datasets import *
+from rpin import datasets
 from rpin.utils.config import _C as cfg
 from rpin.utils.logger import setup_logger, git_diff_config
 from rpin.models import *
@@ -90,8 +90,8 @@ def main():
     random.seed(rng_seed)
     np.random.seed(rng_seed)
     torch.manual_seed(rng_seed)
-    train_set = eval(f'{cfg.DATASET_ABS}')(data_root=cfg.DATA_ROOT, split='train', image_ext=cfg.RPIN.IMAGE_EXT)
-    val_set = eval(f'{cfg.DATASET_ABS}')(data_root=cfg.DATA_ROOT, split='test', image_ext=cfg.RPIN.IMAGE_EXT)
+    train_set = getattr(datasets, cfg.DATASET_ABS)(data_root=cfg.DATA_ROOT, split='train', image_ext=cfg.RPIN.IMAGE_EXT)
+    val_set = getattr(datasets, cfg.DATASET_ABS)(data_root=cfg.DATA_ROOT, split='test', image_ext=cfg.RPIN.IMAGE_EXT)
     kwargs = {'pin_memory': True, 'num_workers': 4}
     train_loader = data.DataLoader(
         train_set, batch_size=cfg.SOLVER.BATCH_SIZE, shuffle=True, **kwargs,

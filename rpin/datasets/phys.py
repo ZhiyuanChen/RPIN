@@ -1,9 +1,10 @@
-import cv2
-import torch
 import random
+
+import cv2
 import numpy as np
+import torch
 from glob import glob
-from torch.utils.data import Dataset
+from torch.utils import data
 
 from rpin.utils.config import _C as C
 from rpin.utils.bbox import xyxy2xywh
@@ -12,7 +13,7 @@ plot = False
 debug = False
 
 
-class Phys(Dataset):
+class Phys(data.Dataset):
     def __init__(self, data_root, split, image_ext='.jpg'):
         self.data_root = data_root
         self.split = split

@@ -1,9 +1,11 @@
 import os
-import phyre
-import torch
+
 import hickle
 import numpy as np
+import phyre
+import torch
 from glob import glob
+from tqdm import tqdm
 
 from rpin.datasets.phys import Phys
 from rpin.utils.misc import tprint
@@ -40,8 +42,7 @@ class PHYRE(Phys):
             self.video_info = np.load(video_info_name)
         else:
             self.video_info = np.zeros((0, 2), dtype=np.int32)
-            for idx, video_name in enumerate(self.video_list):
-                tprint(f'loading progress: {idx}/{len(self.video_list)}')
+            for idx, video_name in enumerate(tqdm(self.video_list, total=len(self.video_list))):
                 num_im = hickle.load(video_name.replace('images', 'labels').replace('.npy', '_boxes.hkl')).shape[0]
                 if plot:
                     # we will pad sequence so no check

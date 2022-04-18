@@ -1,16 +1,19 @@
+import random
+import time
+
+import cv2
+import numpy as np
 import phyre
 import torch
-import time
-import numpy as np
-import cv2
-import random
+from glob import glob
+from torch.utils import data
 from tqdm import tqdm
-from torch.utils.data import Dataset
+
 from rpin.utils.config import _C as C
 from rpin.utils.bbox import xyxy2xywh
 
 
-class PHYREO(Dataset):
+class PHYREO(data.Dataset):
     def __init__(self, data_root, split, image_ext='.jpg'):
         self.data_root = data_root
         self.split = split
