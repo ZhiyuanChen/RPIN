@@ -1,17 +1,20 @@
+import argparse
 import os
-import torch
 import random
 import shutil
-import argparse
-import numpy as np
+
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')
-from rpin.datasets import *
+import numpy as np
+import torch
+from torch.utils import data
+
+from rpin import datasets
 from rpin.utils.config import _C as cfg
 from rpin.utils.logger import setup_logger, git_diff_config
 from rpin.models import *
 from rpin.trainer import Trainer
-from torch.utils import data
+
+plt.switch_backend('agg')
 
 
 def arg_parse():
@@ -87,13 +90,13 @@ def main():
     random.seed(rng_seed)
     np.random.seed(rng_seed)
     torch.manual_seed(rng_seed)
-    train_set = eval(f'{cfg.DATASET_ABS}')(data_root=cfg.DATA_ROOT, split='train', image_ext=cfg.RPIN.IMAGE_EXT)
-    val_set = eval(f'{cfg.DATASET_ABS}')(data_root=cfg.DATA_ROOT, split='test', image_ext=cfg.RPIN.IMAGE_EXT)
+    train_set = getattr(datasets, cfg.DATASET_ABS)(data_root=cfg.DATA_ROOT, split='train', image_ext=cfg.RPIN.IMAGE_EXT)
+    val_set = getattr(datasets, cfg.DATASET_ABS)(data_root=cfg.DATA_ROOT, split='test', image_ext=cfg.RPIN.IMAGE_EXT)
     kwargs = {'pin_memory': True, 'num_workers': 4}
-    train_loader = torch.utils.data.DataLoader(
+    train_loader = data.DataLoader(
         train_set, batch_size=cfg.SOLVER.BATCH_SIZE, shuffle=True, **kwargs,
     )
-    val_loader = torch.utils.data.DataLoader(
+    val_loader = data.DataLoader(
         val_set, batch_size=1 if cfg.RPIN.VAE else cfg.SOLVER.BATCH_SIZE, shuffle=False, **kwargs,
     )
     print(f'size: train {len(train_loader)} / test {len(val_loader)}')
