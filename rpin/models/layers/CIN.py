@@ -51,9 +51,9 @@ class InterNet(nn.Module):
         # of shape (b, o, dim, 7, 7)
         batch_size, num_objs, dim, psz, psz = x.shape
         x1 = x.repeat(1, num_objs - 1, 1, 1, 1)
-        i1 = g_idx[..., [0], None, None].repeat(1, 1, dim, psz, psz)
+        i1 = g_idx[..., [0], None, None].repeat(1, 1, dim, psz, psz).long()
         y1 = torch.gather(x1, 1, i1)
-        i2 = g_idx[..., [1], None, None].repeat(1, 1, dim, psz, psz)
+        i2 = g_idx[..., [1], None, None].repeat(1, 1, dim, psz, psz).long()
         y2 = torch.gather(x1, 1, i2)
         r = torch.cat([y1, y2], dim=2)
         r = r * g_idx[:, :, [2], None, None]
