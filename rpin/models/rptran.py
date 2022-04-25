@@ -58,7 +58,8 @@ class Net(nn.Module):
             dropout=C.RPIN.TRAN_DROPOUT,
             dim_feedforward=C.RPIN.TRAN_FEAT_DIM
         )
-        self.transformer_encoder = nn.TransformerEncoder(self.transformer_encoder_layer, num_layers=1)
+        self.transformer_encoder = nn.TransformerEncoder(self.transformer_encoder_layer,
+                                                         num_layers=C.RPIN.TRAN_ENCODER_LAYERS_NUM)
 
         self.transformer_decoder = nn.Linear(self.tran_embed_dim,
                                              self.in_feat_dim * self.pool_size * self.pool_size)

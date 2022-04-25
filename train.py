@@ -68,7 +68,7 @@ def main():
         model, device_ids=list(range(args.gpus.count(',') + 1))
     )
 
-    # ---- setup optimizer
+    # # ---- setup optimizer
     vae_params = [p for p_name, p in model.named_parameters() if 'vae_lstm' in p_name]
     other_params = [p for p_name, p in model.named_parameters() if 'vae_lstm' not in p_name]
     optim = torch.optim.Adam(
@@ -113,8 +113,8 @@ def main():
     try:
         trainer.train()
     except BaseException:
-        if len(glob(f"{output_dir}/*.tar")) < 1:
-            shutil.rmtree(output_dir)
+        # if len(glob(f"{output_dir}/*.tar")) < 1:
+        #     shutil.rmtree(output_dir)
         raise
 
 

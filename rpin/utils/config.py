@@ -55,6 +55,7 @@ _C.RPIN.MAX_NUM_OBJS = 3
 _C.RPIN.POSITION_LOSS_WEIGHT = 1
 _C.RPIN.MASK_LOSS_WEIGHT = 0.0
 _C.RPIN.MASK_SIZE = 14
+_C.RPIN.MASK_LOSS_FUN = 'ce'
 # additional input
 _C.RPIN.IMAGE_FEATURE = True
 # ROI POOLING
@@ -68,6 +69,7 @@ _C.RPIN.TRAN_EMBED_DIM = 512
 _C.RPIN.TRAN_HEADS_NUM = 8
 _C.RPIN.TRAN_DROPOUT = 0.1
 _C.RPIN.TRAN_FEAT_DIM = 2048
+_C.RPIN.TRAN_ENCODER_LAYERS_NUM = 6
 # uncertainty modeling, usually just for ShapeStacks
 _C.RPIN.VAE = False
 _C.RPIN.VAE_KL_LOSS_WEIGHT = 0.001
@@ -83,6 +85,7 @@ _C.RPIN.N_EXTRA_AGGREGATOR_F = 0
 _C.RPIN.EXTRA_F_KERNEL = 3
 _C.RPIN.EXTRA_F_PADDING = 1
 _C.RPIN.SEQ_CLS_LOSS_WEIGHT = 0.0
+_C.RPIN.SEQ_LOSS_FUN = 'ce'
 
 # ---------------------------------------------------------------------------- #
 # Misc options

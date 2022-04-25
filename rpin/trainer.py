@@ -37,6 +37,11 @@ class Trainer(object):
         # timer setting
         self.best_mean = 1e6
 
+        self.mask_loss_function = torch.nn.MSELoss(reduction='none') if C.RPIN.MASK_LOSS_FUN == 'mse' \
+            else torch.nn.BCELoss(reduction='none')
+        self.seq_loss_function = torch.nn.MSELoss(reduction='none') if C.RPIN.MASK_LOSS_FUN == 'mse' \
+            else torch.nn.BCELoss(reduction='none')
+
     def train(self):
         print_msg = "| ".join(["progress  | mean "] + list(map("{:6}".format, self.loss_name)))
         self.model.train()
@@ -193,7 +198,8 @@ class Trainer(object):
         mask_loss = 0
         if C.RPIN.MASK_LOSS_WEIGHT > 0:
             # of shape (batch, time, #obj, m_sz, m_sz)
-            mask_loss_ = F.binary_cross_entropy(outputs['masks'], labels['masks'], reduction='none')
+            mask_loss_ = self.mask_loss_function(outputs['masks'], labels['masks'])
+            # mask_loss_ = F.binary_cross_entropy(outputs['masks'], labels['masks'], reduction='none')
             mask_loss = mask_loss_.mean((3, 4))
             valid = labels['valid'][:, None, :]
             mask_loss = mask_loss * valid
@@ -216,7 +222,8 @@ class Trainer(object):
 
         seq_loss = 0
         if C.RPIN.SEQ_CLS_LOSS_WEIGHT > 0:
-            seq_loss = F.binary_cross_entropy(outputs['score'], labels['seq_l'], reduction='none')
+            seq_loss = self.seq_loss_function(outputs['score'], labels['seq_l'])
+            # seq_loss = F.binary_cross_entropy(outputs['score'], labels['seq_l'], reduction='none')
             self.losses['seq'] += seq_loss.sum().item()
             seq_loss = seq_loss.mean() * C.RPIN.SEQ_CLS_LOSS_WEIGHT
             # calculate accuracy
