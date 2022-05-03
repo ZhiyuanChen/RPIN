@@ -1,4 +1,5 @@
 import os
+import math
 from timeit import default_timer as timer
 
 import danling as dl
@@ -20,11 +21,14 @@ class Runner(dl.runner.BaseRunner):
         self.dataloaders['train'], self.dataloaders['val'] = self.prepare(train_loader, val_loader)
         # nn optimization
         self.model, self.optimizer = self.prepare(model, optimizer)
-        # input setting
+        self.scheduler = LRScheduler(
+            self.optimizer, steps=max_iters, lr_final=C.SOLVER.MIN_LR, min_lr=C.SOLVER.MIN_LR,
+            lr_policy=C.SOLVER.SCHEDULER, warmup_steps=C.SOLVER.WARMUP_ITERS)
         self.input_size = C.RPIN.INPUT_SIZE
         self.ptrain_size, self.ptest_size = C.RPIN.PRED_SIZE_TRAIN, C.RPIN.PRED_SIZE_TEST
         self.input_height, self.input_width = C.RPIN.INPUT_HEIGHT, C.RPIN.INPUT_WIDTH
         self.batch_size = C.SOLVER.BATCH_SIZE
+        self.gradient_clip = C.SOLVER.GRADIENT_CLIP
         # train loop settings
         self.iterations = 0
         self.epochs = 0
@@ -47,7 +51,6 @@ class Runner(dl.runner.BaseRunner):
 
     def train_epoch(self):
         for batch_idx, (data, data_t, rois, gt_boxes, gt_masks, valid, g_idx, seq_l) in enumerate(self.dataloaders['train']):
-            self._adjust_learning_rate()
             rois = xyxy_to_rois(rois, batch=data.shape[0], time_step=data.shape[1], num_devices=self.num_gpus)
             self.optimizer.zero_grad()
 
@@ -60,7 +63,10 @@ class Runner(dl.runner.BaseRunner):
             }
             loss = self.loss(outputs, labels, 'train')
             loss.backward()
+            if self.gradient_clip:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.gradient_clip)
             self.optimizer.step()
+            self.scheduler.step()
             # this is an approximation for printing; the dataset size may not divide the batch size
             self.iterations += self.batch_size
 
@@ -265,19 +271,47 @@ class Runner(dl.runner.BaseRunner):
         self.loss_cnt = 0
         self.time = timer()
 
-    def _adjust_learning_rate(self):
-        if self.iterations <= C.SOLVER.WARMUP_ITERS:
-            lr = C.SOLVER.BASE_LR * self.iterations / C.SOLVER.WARMUP_ITERS
-        else:
-            if C.SOLVER.SCHEDULER == 'step':
-                lr = C.SOLVER.BASE_LR
-                for m_iters in C.SOLVER.LR_MILESTONES:
-                    if self.iterations > m_iters:
-                        lr *= C.SOLVER.LR_GAMMA
-            elif C.SOLVER.SCHEDULER == 'cosine':
-                lr = 0.5 * C.SOLVER.BASE_LR * (1 + np.cos(np.pi * self.iterations / self.max_iters))
-            else:
-                raise NotImplementedError
 
-        for param_group in self.optimizer.param_groups:
-            param_group['lr'] = lr
+class LRScheduler(torch.optim.lr_scheduler._LRScheduler):
+    """
+    Schedule the learning rate according to the learning rate schedule policy
+    Support `cosine` and `linear` only
+    Note that the scheduler schedule learning rate by steps
+    """
+    def __init__(
+        self,
+        optimizer,
+        steps,
+        lr_final,
+        min_lr=1e-6,
+        lr_policy='cosine',
+        warmup_steps=10_000,
+        accum_steps=1,
+        last_epoch=-1,
+    ):
+        if lr_policy not in ('cosine', 'linear'):
+            raise ValueError(
+                f'Only "cosine" or "linear" schedule policy are supported, but got {lr_policy}')
+        self.steps = math.ceil(steps / accum_steps)
+        self.lr_final = lr_final
+        self.min_lr = min_lr
+        self.lr_policy = lr_policy
+        self.warmup_steps = math.ceil(warmup_steps / accum_steps)
+        super(LRScheduler, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        progress = (self._step_count - self.warmup_steps) / float(self.steps - self.warmup_steps)
+        progress = np.clip(progress, 0.0, 1.0)
+        ratio = getattr(self, self.lr_policy)(progress)
+        if self.warmup_steps:
+            ratio = ratio * np.minimum(1., self._step_count / self.warmup_steps)
+        return [max(self.min_lr, lr * ratio) for lr in self.base_lrs]
+
+    def linear(self, progress):
+        return self.lr_final + (1 - self.lr_final) * (1.0 - progress)
+
+    def cosine(self, progress):
+        return 0.5 * (1. + np.cos(np.pi * progress))
+
+    def __repr__(self):
+        return f'{self.lr_policy.capitalize()}LRScheduler'

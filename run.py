@@ -1,4 +1,3 @@
-import argparse
 import os
 import random
 import shutil
@@ -27,6 +26,7 @@ def arg_parse():
     parser.add_argument('--train', action='store_true', help='train model', default=True)
     parser.add_argument('--val', action='store_true', help='train model', default=True)
     parser.add_argument('--num_gpus', type=int, help='output name', default=4)
+    parser.add_argument('-g', '--gradient_clip', type=float, default=1.0)
     return parser.parse_all_args()
 
 
@@ -57,11 +57,20 @@ def main():
     # ---- setup optimizer
     vae_params = [p for p_name, p in model.named_parameters() if 'vae_lstm' in p_name]
     other_params = [p for p_name, p in model.named_parameters() if 'vae_lstm' not in p_name]
-    optimizer = torch.optim.Adam(
-        [{'params': vae_params, 'weight_decay': 0.0}, {'params': other_params}],
-        lr=cfg.SOLVER.BASE_LR,
-        weight_decay=cfg.SOLVER.WEIGHT_DECAY,
-    )
+    Optimizer = getattr(torch.optim, cfg.SOLVER.OPTIMIZER)
+    if cfg.SOLVER.OPTIMIZER in ('SGD', 'RMSprop'):
+        optimizer = Optimizer(
+            [{'params': vae_params, 'weight_decay': 0.0}, {'params': other_params}],
+            lr=cfg.SOLVER.BASE_LR,
+            weight_decay=cfg.SOLVER.WEIGHT_DECAY,
+            momentum=cfg.SOLVER.MOMEMTUM
+        )
+    else:
+        optimizer = Optimizer(
+            [{'params': vae_params, 'weight_decay': 0.0}, {'params': other_params}],
+            lr=cfg.SOLVER.BASE_LR,
+            weight_decay=cfg.SOLVER.WEIGHT_DECAY,
+        )
 
     # ---- setup dataset in the last, and avoid non-deterministic in data shuffling order
     train_set = getattr(datasets, cfg.DATASET_ABS)(data_root=cfg.DATA_ROOT, split='train', image_ext=cfg.RPIN.IMAGE_EXT)
