@@ -14,7 +14,7 @@ def xyxy_to_rois(boxes, batch, time_step, num_devices):
     rois = boxes[:, :time_step]
     batch_rois = np.zeros((num_im, num_objs))
     batch_rois[np.arange(num_im), :] = np.arange(num_im).reshape(num_im, 1)
-    batch_rois = torch.tensor(batch_rois.reshape((batch, time_step, -1, 1)), dtype=torch.float32)
+    batch_rois = torch.tensor(batch_rois.reshape((batch, time_step, -1, 1)), dtype=torch.float32).to(rois.device)
     load_list = [batch // num_devices for _ in range(num_devices)]
     extra_loaded_gpus = batch - sum(load_list)
     for i in range(extra_loaded_gpus):
@@ -32,7 +32,7 @@ def xyxy_to_posf(boxes, shape):
     co_f = np.zeros(boxes.shape[:-1] + (4,))
     co_f[..., [0, 2]] = boxes[..., [0, 2]].numpy() / width
     co_f[..., [1, 3]] = boxes[..., [1, 3]].numpy() / height
-    coor_features = torch.from_numpy(co_f.astype(np.float32))
+    coor_features = torch.from_numpy(co_f.astype(np.float32)).to(boxes.device)
     return coor_features
 
 
