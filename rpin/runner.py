@@ -73,7 +73,6 @@ class Runner(dl.runner.BaseRunner):
             if self.gradient_clip:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.gradient_clip)
             self.optimizer.step()
-            self.scheduler.step()
             # this is an approximation for printing; the dataset size may not divide the batch size
             self.iterations += self.batch_size
 
@@ -294,5 +293,5 @@ class Runner(dl.runner.BaseRunner):
             else:
                 raise NotImplementedError
 
-        for param_group in self.optim.param_groups:
+        for param_group in self.optimizer.param_groups:
             param_group['lr'] = lr
