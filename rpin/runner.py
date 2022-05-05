@@ -6,6 +6,7 @@ import danling as dl
 import numpy as np
 import torch
 import torch.nn.functional as F
+from tqdm import tqdm
 
 from rpin.utils.bbox import xyxy_to_posf, xyxy_to_rois
 from rpin.utils.config import _C as C
@@ -77,7 +78,7 @@ class Runner(dl.runner.BaseRunner):
             self.iterations += self.batch_size
 
             print_msg = ""
-            print_msg += f"{self.epochs:03}/{self.iterations // 1000:04}k"
+            print_msg += f"{self.epochs:02}/{self.iterations // 1000:04}k"
             print_msg += f" | "
             mean_loss = np.mean(np.array(self.box_p_step_losses[:self.ptrain_size]) / self.loss_cnt) * 1e3
             print_msg += f"{mean_loss:.3f} | "
@@ -100,7 +101,6 @@ class Runner(dl.runner.BaseRunner):
                 self.model.train()
 
             if self.iterations >= self.max_iters:
-                print('\r', end='')
                 print(f'{self.result_best:.3f}')
                 break
 
@@ -116,8 +116,7 @@ class Runner(dl.runner.BaseRunner):
             box_p_step_losses = [0.0 for _ in range(self.ptest_size)]
             masks_step_losses = [0.0 for _ in range(self.ptest_size)]
 
-        for batch_idx, (data, _, rois, gt_boxes, gt_masks, valid, g_idx, seq_l) in enumerate(self.dataloaders['val']):
-            print(f"eval: {batch_idx}/{len(self.dataloaders['val'])}")
+        for batch_idx, (data, _, rois, gt_boxes, gt_masks, valid, g_idx, seq_l) in enumerate(tqdm(self.dataloaders['val'])):
             with torch.no_grad():
 
                 rois = xyxy_to_rois(rois, batch=data.shape[0], time_step=data.shape[1], num_devices=self.num_gpus)
@@ -158,7 +157,6 @@ class Runner(dl.runner.BaseRunner):
             self.box_p_step_losses = box_p_step_losses.copy()
             self.loss_cnt = len(self.dataloaders['val'])
 
-        print('\r', end='')
         print_msg = ""
         print_msg += f"{self.epochs:03}/{self.iterations // 1000:04}k"
         print_msg += f" | "
@@ -227,8 +225,9 @@ class Runner(dl.runner.BaseRunner):
 
         seq_loss = 0
         if C.RPIN.SEQ_CLS_LOSS_WEIGHT > 0:
-            seq_loss = F.binary_cross_entropy(outputs['score'], labels['seq_l'], reduction='none')
-            self.losses['seq'] += seq_loss.sum().item()
+            weights = labels['seq_l'] * (1 / C.RPIN.SEQ_CLS_LOSS_RATIO)
+            seq_loss = F.binary_cross_entropy(outputs['score'], labels['seq_l'], weights, reduction='none')
+            self.losses['seq'] = seq_loss.sum().item()
             seq_loss = seq_loss.mean() * C.RPIN.SEQ_CLS_LOSS_WEIGHT
             # calculate accuracy
             s = (outputs['score'] >= 0.5).eq(labels['seq_l'])
