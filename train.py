@@ -54,7 +54,7 @@ def main():
     cfg.merge_from_file(args.cfg)
     cfg.SOLVER.BATCH_SIZE *= num_gpus
     cfg.SOLVER.BASE_LR *= num_gpus
-    cfg.freeze()
+    # cfg.freeze()
     output_dir = os.path.join(cfg.OUTPUT_DIR, cfg.DATA_ROOT.split('/')[1], args.output)
     os.makedirs(output_dir, exist_ok=True)
     shutil.copy(args.cfg, os.path.join(output_dir, 'config.yaml'))

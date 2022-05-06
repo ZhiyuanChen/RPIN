@@ -1,11 +1,13 @@
 import os
-import torch
-import numpy as np
-import torch.nn.functional as F
-from rpin.utils.misc import tprint
 from timeit import default_timer as timer
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+from rpin.utils.bbox import xyxy_to_posf, xyxy_to_rois
 from rpin.utils.config import _C as C
-from rpin.utils.bbox import xyxy_to_rois, xyxy_to_posf
+from rpin.utils.misc import tprint
 
 
 class Trainer(object):
@@ -179,6 +181,7 @@ class Trainer(object):
         # of shape (batch, time, #obj, 4)
         loss = (outputs['boxes'] - labels['boxes']) ** 2
         # take weighted sum over axis 2 (objs dim) since some index are not valid
+        __import__('ipdb').set_trace()
         valid = labels['valid'][:, None, :, None]
         loss = loss * valid
         loss = loss.sum(2) / valid.sum(2)
