@@ -6,6 +6,7 @@ import danling as dl
 import numpy as np
 import torch
 import torch.nn.functional as F
+from accelerate.utils import gather, gather_object
 from tqdm import tqdm
 
 from rpin.utils.bbox import xyxy_to_posf, xyxy_to_rois
@@ -35,11 +36,13 @@ class Runner(dl.runner.BaseRunner):
         self.epochs = 0
         self.max_iters = max_iters
         self.val_interval = C.SOLVER.VAL_INTERVAL
-        self.fg_correct, self.bg_correct, self.fg_num, self.bg_num = 0, 0, 0, 0
         # loss settings
         self._setup_loss()
         # timer setting
         self.result_best = 1e6
+        self.fg = dl.AverageMeter(self.batch_size)
+        self.bg = dl.AverageMeter(self.batch_size)
+        self.save_freq = 1
 
     def train(self):
         """
@@ -85,20 +88,18 @@ class Runner(dl.runner.BaseRunner):
             print_msg += f" | ".join(
                 ["{:.3f}".format(self.losses[name] * 1e3 / self.loss_cnt) for name in self.loss_name])
             if C.RPIN.SEQ_CLS_LOSS_WEIGHT:
-                print_msg += f" | {self.fg_correct / (self.fg_num + 1e-9):.3f} | {self.bg_correct / (self.bg_num + 1e-9):.3f}"
+                print_msg += f" | {self.fg.avg:.3f} | {self.bg.avg:.3f}"
             speed = self.loss_cnt / (timer() - self.time)
             eta = (self.max_iters - self.iterations) / speed / 3600
             print_msg += f" | speed: {speed:.1f} | eta: {eta:.2f} h"
-            try:
-                print_msg += (" " * (os.get_terminal_size().columns - len(print_msg) - 10))
-            except OSError:
-                print_msg += (" " * (100 - len(print_msg) - 10))
             print(print_msg)
 
             if self.iterations % self.val_interval == 0:
                 self.evaluate()
                 self._init_loss()
                 self.model.train()
+                self.fg.reset()
+                self.bg.reset()
 
             if self.iterations >= self.max_iters:
                 print(f'{self.result_best:.3f}')
@@ -116,6 +117,7 @@ class Runner(dl.runner.BaseRunner):
             box_p_step_losses = [0.0 for _ in range(self.ptest_size)]
             masks_step_losses = [0.0 for _ in range(self.ptest_size)]
 
+        inf, gt = [], []
         for batch_idx, (data, _, rois, gt_boxes, gt_masks, valid, g_idx, seq_l) in enumerate(tqdm(self.dataloaders['val'])):
             with torch.no_grad():
 
@@ -128,6 +130,8 @@ class Runner(dl.runner.BaseRunner):
                 }
 
                 outputs = self.model(data, rois, num_rollouts=self.ptest_size, g_idx=g_idx, phase='test')
+                gt.extend(labels['seq_l'].tolist())
+                inf.extend(outputs['score'].tolist())
                 self.loss(outputs, labels, 'test')
                 # VAE multiple runs
                 if C.RPIN.VAE:
@@ -170,7 +174,11 @@ class Runner(dl.runner.BaseRunner):
 
         print_msg += f" | ".join(["{:.3f}".format(self.losses[name] * 1e3 / self.loss_cnt) for name in self.loss_name])
         if C.RPIN.SEQ_CLS_LOSS_WEIGHT:
-            print_msg += f" | {self.fg_correct / (self.fg_num + 1e-9):.3f} | {self.bg_correct / (self.bg_num + 1e-9):.3f}"
+            inf, gt = torch.tensor(gather_object(inf)), torch.tensor(gather_object(gt))
+            acc = (inf >= 0.5).eq(gt)
+            fg_acc = acc[gt == 1].sum().item() / ((gt == 1).sum().item() + 1e-7)
+            bg_acc = acc[gt == 0].sum().item() / ((gt == 0).sum().item() + 1e-7)
+            print_msg += f" | {fg_acc:.3f} | {bg_acc:.3f}"
         print(print_msg)
 
     def loss(self, outputs, labels, phase):
@@ -225,20 +233,19 @@ class Runner(dl.runner.BaseRunner):
 
         seq_loss = 0
         if C.RPIN.SEQ_CLS_LOSS_WEIGHT > 0:
-            weights = labels['seq_l'] * (1 / C.RPIN.SEQ_CLS_LOSS_RATIO)
-            seq_loss = F.binary_cross_entropy(outputs['score'], labels['seq_l'], weights, reduction='none')
-            self.losses['seq'] = seq_loss.sum().item()
+            weight = torch.ones_like(labels['seq_l'])
+            weight[labels['seq_l'] == 1] *= 1 / C.RPIN.SEQ_CLS_LOSS_RATIO
+            # weight[labels['seq_l'] == 1] *= self.batch_size * C.RPIN.SEQ_CLS_LOSS_RATIO / (labels['seq_l'] == 1).sum().item()
+            seq_loss = F.binary_cross_entropy(outputs['score'], labels['seq_l'], weight, reduction='none')
             seq_loss = seq_loss.mean() * C.RPIN.SEQ_CLS_LOSS_WEIGHT
+            self.losses['seq'] = gather(seq_loss).mean()
             # calculate accuracy
-            s = (outputs['score'] >= 0.5).eq(labels['seq_l'])
-            fg_correct = s[labels['seq_l'] == 1].sum().item()
-            bg_correct = s[labels['seq_l'] == 0].sum().item()
-            fg_num = (labels['seq_l'] == 1).sum().item()
-            bg_num = (labels['seq_l'] == 0).sum().item()
-            self.fg_correct += fg_correct
-            self.bg_correct += bg_correct
-            self.fg_num += fg_num
-            self.bg_num += bg_num
+            inf, gt = gather(outputs['score']), gather(labels['seq_l'])
+            acc = (inf >= 0.5).eq(gt)
+            fg_acc = acc[gt == 1].sum().item() / ((gt == 1).sum().item() + 1e-7)
+            bg_acc = acc[gt == 0].sum().item() / ((gt == 0).sum().item() + 1e-7)
+            self.fg.update(fg_acc)
+            self.bg.update(bg_acc)
 
         kl_loss = 0
         if C.RPIN.VAE and phase == 'train':
@@ -274,7 +281,6 @@ class Runner(dl.runner.BaseRunner):
         self.box_s_step_losses = [0.0 for _ in range(self.ptest_size)]
         self.masks_step_losses = [0.0 for _ in range(self.ptest_size)]
         # an statistics of each validation
-        self.fg_correct, self.bg_correct, self.fg_num, self.bg_num = 0, 0, 0, 0
         self.loss_cnt = 0
         self.time = timer()
 
@@ -289,6 +295,8 @@ class Runner(dl.runner.BaseRunner):
                         lr *= C.SOLVER.LR_GAMMA
             elif C.SOLVER.SCHEDULER == 'cosine':
                 lr = 0.5 * C.SOLVER.BASE_LR * (1 + np.cos(np.pi * self.iterations / self.max_iters))
+            elif C.SOLVER.SCHEDULER == 'linear':
+                lr = C.SOLVER.BASE_LR * (self.iterations / self.max_iters)
             else:
                 raise NotImplementedError
 

@@ -44,7 +44,7 @@ def main():
 
     # ---- setup config files
     cfg.merge_from_file(args.cfg)
-    cfg.SOLVER.BASE_LR *= args.num_gpus * cfg.SOLVER.BATCH_SIZE
+    cfg.SOLVER.BASE_LR *= args.num_gpus * cfg.SOLVER.BATCH_SIZE / cfg.SOLVER.BATCH_SIZE_BASE
     cfg.freeze()
     os.makedirs(args.experiment_dir, exist_ok=True)
     shutil.copy(args.cfg, os.path.join(args.experiment_dir, 'config.yaml'))
