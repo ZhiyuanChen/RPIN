@@ -1,11 +1,11 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-from yacs.config import CfgNode
+from danling import Config
 
 # -----------------------------------------------------------------------------
 # Config definition
 # -----------------------------------------------------------------------------
 
-_C = CfgNode()
+_C = Config()
 
 _C.DATA_ROOT = './data/'
 _C.DATASET_ABS = 'Phys'
@@ -14,15 +14,15 @@ _C.PHYRE_FOLD = 0
 # -----------------------------------------------------------------------------
 # INPUT
 # -----------------------------------------------------------------------------
-_C.INPUT = CfgNode()
+_C.INPUT = Config()
 _C.INPUT.PRELOAD_TO_MEMORY = False
 _C.INPUT.IMAGE_MEAN = [0, 0, 0]
 _C.INPUT.IMAGE_STD = [1.0, 1.0, 1.0]
-_C.INPUT.IMAGE_CHANNEL = 3
+_C.INPUT.image_channel = 3
 # ---------------------------------------------------------------------------- #
 # Solver
 # ---------------------------------------------------------------------------- #
-_C.SOLVER = CfgNode()
+_C.SOLVER = Config()
 
 _C.SOLVER.BASE_LR = 0.001
 _C.SOLVER.MIN_LR = 0.001
@@ -42,7 +42,7 @@ _C.SOLVER.SCHEDULER = 'step'
 # ---------------------------------------------------------------------------- #
 # Intuitive Physics models
 # ---------------------------------------------------------------------------- #
-_C.RPIN = CfgNode()
+_C.RPIN = Config()
 _C.RPIN.ARCH = ''
 _C.RPIN.BACKBONE = ''
 _C.RPIN.HORIZONTAL_FLIP = False
