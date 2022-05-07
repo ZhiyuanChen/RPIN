@@ -81,6 +81,7 @@ class Runner(dl.runner.BaseRunner):
         self.score_best = 1e6
         self.save_freq = 1
         self.time = timer()
+        self.timer = dl.metrics.AverageMeter()
 
     def train(self):
         """
@@ -133,9 +134,7 @@ class Runner(dl.runner.BaseRunner):
         self.eval_loss.reset()
 
         if self.config.RPIN.VAE:
-            losses = dict.fromkeys(self.eval_loss.ams.keys(), 0.0)
-            box_p_step_losses = torch.zeros(self.ptest_size)
-            masks_step_losses = torch.zeros(self.ptest_size)
+            self.vae_loss.reset()
 
         inf, gt = [], []
         for batch_idx, (data, _, rois, gt_boxes, gt_masks, valid, g_idx, seq_l) in enumerate(tqdm(self.dataloaders['val'])):
@@ -149,31 +148,25 @@ class Runner(dl.runner.BaseRunner):
             self.eval_loss(outputs, labels, 'test')
             # VAE multiple runs
             if self.config.RPIN.VAE:
-                self.vae_loss.reset()
                 vae_best_mean = self.eval_loss.score()
                 for i in range(9):
                     outputs = self.model(data, rois, num_rollouts=self.ptest_size, g_idx=g_idx, phase='test')
                     self.vae_loss(outputs, labels, 'test')
                     mean_loss = self.vae_loss.score()
                     if mean_loss < vae_best_mean:
-                        losses_t = self.losses.copy()
-                        box_p_step_losses_t = self.box_p_step_losses.copy()
-                        masks_step_losses_t = self.masks_step_losses.copy()
+                    #     losses_t = self.losses.copy()
+                    #     box_p_step_losses_t = self.box_p_step_losses.copy()
+                    #     masks_step_losses_t = self.masks_step_losses.copy()
                         vae_best_mean = mean_loss
 
-                for k, v in losses.items():
-                    losses[k] += losses_t[k]
-                for i in range(len(box_p_step_losses)):
-                    box_p_step_losses[i] += box_p_step_losses_t[i]
-                    masks_step_losses[i] += masks_step_losses_t[i]
-
-        if self.config.RPIN.VAE:
-            self.losses = losses.copy()
-            self.box_p_step_losses = box_p_step_losses.copy()
+        # if self.config.RPIN.VAE:
+        #     self.losses = losses.copy()
+        #     self.box_p_step_losses = box_p_step_losses.copy()
 
         self.score_last = self.eval_loss.score()
-        self.result_last = self.eval_loss.score()
-        self.result_best = min(self.result_last, self.result_best)
+        self.result_last = self.eval_loss.avg()
+        if self.is_best:
+            self.result_best = self.score_last
         self.save()
         print_msg = f"{self.epochs:03}/{self.iters // 1000:04}k | {self.score_last:.3f} | "
         print_msg += f" | ".join(["{:.3f}".format(v) for k, v in self.eval_loss.val()])
