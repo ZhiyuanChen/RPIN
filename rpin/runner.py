@@ -137,15 +137,17 @@ class Runner(dl.runner.BaseRunner):
         if self.config.RPIN.VAE:
             self.vae_loss.reset()
 
-        inf, gt = [], []
+        if self.config.RPIN.SEQ_CLS_LOSS_WEIGHT:
+            inf, gt = [], []
         for batch_idx, (data, _, rois, gt_boxes, gt_masks, valid, g_idx, seq_l) in enumerate(tqdm(self.dataloaders['val'])):
 
             rois = xyxy_to_rois(rois, batch=data.shape[0], time_step=data.shape[1], num_devices=self.num_processes)
             labels = {'boxes': gt_boxes, 'masks': gt_masks, 'valid': valid, 'seq_l': seq_l.squeeze(),}
 
             outputs = self.model(data, rois, num_rollouts=self.ptest_size, g_idx=g_idx, phase='test')
-            gt.extend(labels['seq_l'].tolist())
-            inf.extend(outputs['score'].tolist())
+            if self.config.RPIN.SEQ_CLS_LOSS_WEIGHT:
+                gt.extend(labels['seq_l'].tolist())
+                inf.extend(outputs['score'].tolist())
             self.eval_loss(outputs, labels, 'test')
             # VAE multiple runs
             if self.config.RPIN.VAE:

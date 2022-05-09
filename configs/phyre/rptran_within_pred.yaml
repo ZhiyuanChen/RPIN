@@ -1,5 +1,5 @@
 OUTPUT_DIR: ./outputs/phys_pred
-DATA_ROOT: 'data/PHYRE_1fps_p100n400/'
+DATA_ROOT: 'data/PHYRE_1fps_p100n400'
 DATASET_ABS: 'PHYRE'
 PHYRE_PROTOCAL: 'within'
 PHYRE_FOLD: 0
