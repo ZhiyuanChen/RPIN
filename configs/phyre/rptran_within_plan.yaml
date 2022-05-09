@@ -1,4 +1,4 @@
-OUTPUT_DIR: ./outputs/phys
+OUTPUT_DIR: ./outputs/phys_plan
 DATA_ROOT: 'data/planning/'
 DATASET_ABS: 'PHYREO'  # online version of PHYRE data loader
 PHYRE_PROTOCAL: 'within'

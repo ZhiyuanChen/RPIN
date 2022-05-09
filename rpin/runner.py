@@ -23,6 +23,7 @@ class Runner(dl.runner.BaseRunner):
     runner
     """
     def __init__(self, config):
+        config.experiment_dir = config.OUTPUT_DIR
         self.batch_size = config.SOLVER.BATCH_SIZE
         self.input_size = config.RPIN.INPUT_SIZE
         self.ptrain_size, self.ptest_size = config.RPIN.PRED_SIZE_TRAIN, config.RPIN.PRED_SIZE_TEST
