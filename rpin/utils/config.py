@@ -1,5 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-from danling import Config
+from chanfig import Config
 
 # -----------------------------------------------------------------------------
 # Config definition

@@ -181,7 +181,6 @@ class Trainer(object):
         # of shape (batch, time, #obj, 4)
         loss = (outputs['boxes'] - labels['boxes']) ** 2
         # take weighted sum over axis 2 (objs dim) since some index are not valid
-        __import__('ipdb').set_trace()
         valid = labels['valid'][:, None, :, None]
         loss = loss * valid
         loss = loss.sum(2) / valid.sum(2)
