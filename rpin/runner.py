@@ -24,6 +24,7 @@ class Runner(dl.runner.BaseRunner):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.epoch_end = 6
         self.pin_memory = True
         self.num_workers = 16
         self.experiment_dir = self.OUTPUT_DIR
@@ -94,7 +95,7 @@ class Runner(dl.runner.BaseRunner):
             pin_memory=self.pin_memory,
             sampler=sampler))
 
-    def train(self):
+    def run(self):
         """
         train
         """
@@ -102,14 +103,16 @@ class Runner(dl.runner.BaseRunner):
         self.model.train()
         print('\r', end='')
         print(print_msg)
-        while self.iters < self.iter_end:
-            self.train_epoch()
-            self.epochs += 1
+        for self.epochs in range(self.epoch_end):
+            self.train()
+            self.evaluate()
 
-    def train_epoch(self):
+    def train(self):
         """
         train_epoch
         """
+        self.model.train()
+        self.train_loss.reset()
         for batch_idx, (data, data_t, rois, gt_boxes, gt_masks, valid, g_idx, seq_l) in enumerate(self.dataloaders['train']):
             rois = xyxy_to_rois(rois, batch=data.shape[0], time_step=data.shape[1], num_devices=self.num_processes)
             outputs = self.model(data, rois, num_rollouts=self.ptrain_size, g_idx=g_idx, x_t=data_t, phase='train')
@@ -131,7 +134,6 @@ class Runner(dl.runner.BaseRunner):
             if self.iters % self.val_interval == 0:
                 self.train_loss.reset()
                 self.evaluate()
-                self.model.train()
 
             if self.iters >= self.iter_end:
                 break

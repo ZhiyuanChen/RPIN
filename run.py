@@ -19,4 +19,4 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--gradient_clip', type=float, default=1.0)
     config = parser.parse_config(config=cfg)
     runner = Runner(**config)
-    runner.train()
+    runner.run()
